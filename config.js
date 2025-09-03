@@ -1,3 +1,3 @@
 const CONFIG = {
-  GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbwPbu6v-jfKR26ll44cGvpen37PxDiZtTVJsD1_gZ5CBhbn4Xt0JOwxr4G9XqOx_VPB/exec"
+  GAS_ENDPOINT: "https://script.google.com/macros/s/AKfycbzq5yZ0MYmyb4sDtHwqFyH7DnG9Baj9g-DILHNAUbEkMF1_cDhEVaJtgFwZ80Z0EIf9/exec"
 };

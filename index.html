@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de Ingreso Laboratorio - Escáner</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+  <style>
+    :root{--bg:#0f172a;--card:#111827;--accent:#22c55e;--muted:#94a3b8;--danger:#ef4444}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .container{max-width:900px;margin:0 auto;padding:16px}
+    header{display:flex;align-items:center;gap:12px;justify-content:space-between}
+    .title{font-size:clamp(20px,3vw,28px);font-weight:700}
+    .card{background:var(--card);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);border:1px solid #1f2937}
+    .row{display:flex;gap:16px;flex-wrap:wrap}
+    .col{flex:1 1 260px}
+    button{border:0;border-radius:14px;padding:12px 16px;font-weight:600;cursor:pointer}
+    .primary{background:var(--accent);color:#041b11}
+    .secondary{background:#1f2937;color:#e5e7eb;border:1px solid #30363d}
+    .danger{background:var(--danger);color:white}
+    .muted{color:var(--muted);font-size:14px}
+    .status{margin-top:8px;padding:10px;border-radius:12px;background:#0b1220;border:1px dashed #2b3340}
+    #result{font-size:16px;white-space:pre-wrap}
+    #preview{height:380px}
+    .small{font-size:12px;color:#9ca3af}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:720px){.grid{grid-template-columns:2fr 1fr}}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0b1220;border:1px solid #223049;font-size:12px;color:#cbd5e1}
+    input,select{width:100%;padding:10px;border-radius:10px;border:1px solid #30363d;background:#0b1220;color:#e5e7eb}
+    .log{max-height:220px;overflow:auto;font-family:ui-monospace,Consolas,monospace;background:#0b1220;border:1px solid #223049;border-radius:12px;padding:10px}
+    a{color:#93c5fd}
+  </style>
+  <script defer src="https://unpkg.com/html5-qrcode"></script>
+  <script defer src="config.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title">Control de Ingreso • Escáner</div>
+      <span class="badge" id="pwa-badge">PWA lista</span>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row">
+          <div class="col" style="min-width:260px">
+            <label for="cameraSelect" class="small">Cámara</label>
+            <select id="cameraSelect"></select>
+          </div>
+          <div class="col" style="max-width:180px">
+            <label for="lab" class="small">Laboratorio</label>
+            <input id="lab" placeholder="Electrónica / Física" />
+          </div>
+          <div class="col" style="max-width:200px">
+            <label for="modo" class="small">Modo</label>
+            <select id="modo">
+              <option value="auto">Automático (Entrada/Salida)</option>
+              <option value="entrada">Forzar Entrada</option>
+              <option value="salida">Forzar Salida</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="preview" class="card" style="margin-top:12px"></div>
+
+        <div class="row" style="margin-top:12px">
+          <button id="startBtn" class="primary">Iniciar escáner</button>
+          <button id="stopBtn" class="secondary">Detener</button>
+          <button id="torchBtn" class="secondary">Linterna</button>
+          <button id="switchBtn" class="secondary">Cambiar cámara</button>
+        </div>
+
+        <div class="status">
+          <div class="muted">Estado</div>
+          <div id="result">Listo para escanear…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted">Actividad reciente</div>
+        <div id="log" class="log"></div>
+        <div class="small" style="margin-top:8px">Consejo: puedes instalar esta página en tu celular como app (PWA) desde el menú “Agregar a pantalla de inicio”.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <details>
+        <summary>Ayuda rápida</summary>
+        <ul>
+          <li>Apunta la cámara al <strong>QR o código de barras</strong> del carné.</li>
+          <li>El sistema registra hora, fecha, laboratorio y determina Entrada/Salida.</li>
+          <li>Funciona offline: los registros se almacenan y se envían cuando vuelve el Internet.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
+</body>
+</html>

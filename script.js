@@ -11,14 +11,6 @@ const status = (m)=>{ $("result").textContent = m; };
 
 const offlineQueueKey = "qr_attendance_queue_v1";
 
-// 🔥 función para ajustar el área de escaneo al tamaño de la pantalla
-function getQrboxSize() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const minEdge = Math.min(vw, vh);
-  return { width: minEdge * 0.8, height: minEdge * 0.5 };
-}
-
 async function loadCameras(){
   const devices = await Html5Qrcode.getCameras();
   cameras = devices || [];
@@ -37,13 +29,13 @@ async function startScanner(){
   if (!html5Qrcode) html5Qrcode = new Html5Qrcode(previewId, { verbose: false });
   const camId = cameras[currentCameraIndex]?.id || { facingMode: "environment" };
   const fps = 12;
-  const qrbox = getQrboxSize(); // 🔥 ahora dinámico
+  const qrbox = { width: 300, height: 200 };
   try{
     await html5Qrcode.start(
       camId,
       { fps, qrbox, aspectRatio: 1.77, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
       onScanSuccess,
-      (err)=>{} // ignorar errores de lectura
+      (err)=>{} // ignore scan failure noise
     );
     status("Escaneando…");
   }catch(e){
@@ -78,50 +70,41 @@ async function toggleTorch(){
 }
 
 function parseStudent(raw){
+  // Soporta QR o código de barras con: código, documento o cualquier cadena.
+  // Si el QR incluye JSON, intenta leer 'codigo' o 'id'.
   try {
     const j = JSON.parse(raw);
-    return {
-      codigo: j.codigo || j.id || j.code || raw,
-      nombre: j.nombre || "",
-      documento: j.documento || ""
-    };
-  } catch {
-    const parts = raw.trim().split(" ");
-    if (parts.length >= 3) {
-      const codigo = parts[0];
-      const documento = parts[parts.length - 1];
-      const nombre = parts.slice(1, parts.length - 1).join(" ");
-      return { codigo, nombre, documento };
-    }
-    return { codigo: raw, nombre: "", documento: "" };
-  }
+    return j.codigo || j.id || j.code || raw;
+  } catch { return raw; }
 }
 
-async function sendRecord(student, mode, lab){
+async function sendRecord(studentId, mode, lab){
   const payload = {
-    codigo: String(student.codigo).trim(),
-    nombre: student.nombre || "",
-    documento: String(student.documento || "").trim(),
+    student_id: String(studentId).trim(),
     mode: mode || "auto",
     lab: lab || "",
+    // timestamp del cliente solo para referencia, el servidor usará su hora
     client_ts: new Date().toISOString(),
     source: "pwa"
   };
 
+  // Si no hay endpoint configurado aún, solo registra en log
   if (!CONFIG || !CONFIG.GAS_ENDPOINT){
     log("⚠️ Agrega tu GAS_ENDPOINT en config.js para enviar a Sheets.");
     return { ok:false, message:"Sin endpoint" };
   }
 
   try{
-    await fetch(CONFIG.GAS_ENDPOINT, {
+    const res = await fetch(CONFIG.GAS_ENDPOINT, {
       method: "POST",
-      mode: "no-cors",
+      mode: "no-cors", // GAS webapp público puede requerir no-cors; en ese caso no habrá respuesta legible
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+    // Cuando 'no-cors', no se puede leer res.ok; asumimos enviado
     return { ok:true, message:"Enviado" };
   }catch(e){
+    // Si falla, guardamos en cola offline
     queueOffline(payload);
     return { ok:false, message:"Sin conexión. Guardado offline." };
   }
@@ -156,20 +139,20 @@ async function onScanSuccess(decodedText, decodedResult){
   await stopScanner(); // evita duplicados
   const lab = $("lab").value;
   const mode = $("modo").value;
+  const id = parseStudent(decodedText);
+  status(`Leído: ${id}. Enviando…`);
+  log(`🔎 Código leído: ${id}`);
 
-  const student = parseStudent(decodedText);
-  status(`Leído: ${student.codigo} - ${student.nombre}`);
-  log(`🔎 Código leído: ${student.codigo} | ${student.nombre} | ${student.documento}`);
-
-  const r = await sendRecord(student, mode, lab);
+  const r = await sendRecord(id, mode, lab);
   if (r.ok){
-    status(`Registro enviado para ${student.nombre || student.codigo}.`);
-    log(`📤 ${student.codigo} → ${mode.toUpperCase()} (${lab || "sin lab"})`);
+    status(`Registro enviado para ${id}.`);
+    log(`📤 ${id} → ${mode.toUpperCase()} (${lab || "sin lab"})`);
     beep();
   } else {
     status(`No se envió (offline). Queda en cola.`);
   }
 
+  // Reinicia el escaneo tras breve pausa
   setTimeout(()=>startScanner(), 600);
 }
 

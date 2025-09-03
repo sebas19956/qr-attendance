@@ -23,7 +23,18 @@
     .muted{color:var(--muted);font-size:14px}
     .status{margin-top:8px;padding:10px;border-radius:12px;background:#0b1220;border:1px dashed #2b3340}
     #result{font-size:16px;white-space:pre-wrap}
-    #preview{height:380px}
+
+    /* 🔥 Ajuste del área de escaneo */
+    #preview{
+      width: 100%;
+      max-width: 500px;
+      aspect-ratio: 4 / 3;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      background:#000;
+    }
+
     .small{font-size:12px;color:#9ca3af}
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     @media(min-width:720px){.grid{grid-template-columns:2fr 1fr}}

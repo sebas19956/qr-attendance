@@ -11,6 +11,14 @@ const status = (m)=>{ $("result").textContent = m; };
 
 const offlineQueueKey = "qr_attendance_queue_v1";
 
+// 🔥 función para ajustar el área de escaneo al tamaño de la pantalla
+function getQrboxSize() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const minEdge = Math.min(vw, vh);
+  return { width: minEdge * 0.8, height: minEdge * 0.5 };
+}
+
 async function loadCameras(){
   const devices = await Html5Qrcode.getCameras();
   cameras = devices || [];
@@ -29,7 +37,7 @@ async function startScanner(){
   if (!html5Qrcode) html5Qrcode = new Html5Qrcode(previewId, { verbose: false });
   const camId = cameras[currentCameraIndex]?.id || { facingMode: "environment" };
   const fps = 12;
-  const qrbox = { width: 300, height: 200 };
+  const qrbox = getQrboxSize(); // 🔥 ahora dinámico
   try{
     await html5Qrcode.start(
       camId,
@@ -70,8 +78,6 @@ async function toggleTorch(){
 }
 
 function parseStudent(raw){
-  // Soporta QR con texto plano tipo:
-  // "202367506 Juan Camilo VELASQUEZ CORONADO 1006327468"
   try {
     const j = JSON.parse(raw);
     return {

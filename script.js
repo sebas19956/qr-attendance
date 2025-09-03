@@ -35,7 +35,7 @@ async function startScanner(){
       camId,
       { fps, qrbox, aspectRatio: 1.77, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
       onScanSuccess,
-      (err)=>{} // ignore scan failure noise
+      (err)=>{} // ignorar errores de lectura
     );
     status("Escaneando…");
   }catch(e){
@@ -70,41 +70,52 @@ async function toggleTorch(){
 }
 
 function parseStudent(raw){
-  // Soporta QR o código de barras con: código, documento o cualquier cadena.
-  // Si el QR incluye JSON, intenta leer 'codigo' o 'id'.
+  // Soporta QR con texto plano tipo:
+  // "202367506 Juan Camilo VELASQUEZ CORONADO 1006327468"
   try {
     const j = JSON.parse(raw);
-    return j.codigo || j.id || j.code || raw;
-  } catch { return raw; }
+    return {
+      codigo: j.codigo || j.id || j.code || raw,
+      nombre: j.nombre || "",
+      documento: j.documento || ""
+    };
+  } catch {
+    const parts = raw.trim().split(" ");
+    if (parts.length >= 3) {
+      const codigo = parts[0];
+      const documento = parts[parts.length - 1];
+      const nombre = parts.slice(1, parts.length - 1).join(" ");
+      return { codigo, nombre, documento };
+    }
+    return { codigo: raw, nombre: "", documento: "" };
+  }
 }
 
-async function sendRecord(studentId, mode, lab){
+async function sendRecord(student, mode, lab){
   const payload = {
-    student_id: String(studentId).trim(),
+    codigo: String(student.codigo).trim(),
+    nombre: student.nombre || "",
+    documento: String(student.documento || "").trim(),
     mode: mode || "auto",
     lab: lab || "",
-    // timestamp del cliente solo para referencia, el servidor usará su hora
     client_ts: new Date().toISOString(),
     source: "pwa"
   };
 
-  // Si no hay endpoint configurado aún, solo registra en log
   if (!CONFIG || !CONFIG.GAS_ENDPOINT){
     log("⚠️ Agrega tu GAS_ENDPOINT en config.js para enviar a Sheets.");
     return { ok:false, message:"Sin endpoint" };
   }
 
   try{
-    const res = await fetch(CONFIG.GAS_ENDPOINT, {
+    await fetch(CONFIG.GAS_ENDPOINT, {
       method: "POST",
-      mode: "no-cors", // GAS webapp público puede requerir no-cors; en ese caso no habrá respuesta legible
+      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    // Cuando 'no-cors', no se puede leer res.ok; asumimos enviado
     return { ok:true, message:"Enviado" };
   }catch(e){
-    // Si falla, guardamos en cola offline
     queueOffline(payload);
     return { ok:false, message:"Sin conexión. Guardado offline." };
   }
@@ -139,20 +150,20 @@ async function onScanSuccess(decodedText, decodedResult){
   await stopScanner(); // evita duplicados
   const lab = $("lab").value;
   const mode = $("modo").value;
-  const id = parseStudent(decodedText);
-  status(`Leído: ${id}. Enviando…`);
-  log(`🔎 Código leído: ${id}`);
 
-  const r = await sendRecord(id, mode, lab);
+  const student = parseStudent(decodedText);
+  status(`Leído: ${student.codigo} - ${student.nombre}`);
+  log(`🔎 Código leído: ${student.codigo} | ${student.nombre} | ${student.documento}`);
+
+  const r = await sendRecord(student, mode, lab);
   if (r.ok){
-    status(`Registro enviado para ${id}.`);
-    log(`📤 ${id} → ${mode.toUpperCase()} (${lab || "sin lab"})`);
+    status(`Registro enviado para ${student.nombre || student.codigo}.`);
+    log(`📤 ${student.codigo} → ${mode.toUpperCase()} (${lab || "sin lab"})`);
     beep();
   } else {
     status(`No se envió (offline). Queda en cola.`);
   }
 
-  // Reinicia el escaneo tras breve pausa
   setTimeout(()=>startScanner(), 600);
 }
 
